@@ -1,0 +1,19 @@
+{
+  "name": "battleship-miniapp",
+  "version": "1.0.0",
+  "description": "Классическая игра Морской Бой как Telegram Mini App",
+  "main": "game.js",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "telegram",
+    "miniapp",
+    "game",
+    "battleship",
+    "морской-бой"
+  ],
+  "author": "",
+  "license": "MIT"
+}

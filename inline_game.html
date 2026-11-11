@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🚢 Морской Бой</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #0B0E14;
+            color: #F8FAFC;
+            overflow-x: hidden;
+            min-height: 100vh;
+            padding: 12px;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #1E293B;
+            margin-bottom: 16px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #38BDF8, #22D3EE);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 4px;
+        }
+        
+        .phase {
+            font-size: 13px;
+            color: #94A3B8;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .stat {
+            flex: 1;
+            background: #111827;
+            border: 1px solid #1E293B;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #64748B;
+            margin-bottom: 4px;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #38BDF8;
+        }
+        
+        .boards {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .board-section {
+            background: #111827;
+            border: 1px solid #1E293B;
+            border-radius: 12px;
+            padding: 12px;
+        }
+        
+        .board-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #94A3B8;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 3px;
+            margin: 0 auto;
+            max-width: 100%;
+        }
+        
+        .cell {
+            aspect-ratio: 1;
+            background: #1E293B;
+            border: 1px solid #334155;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+        }
+        
+        .cell:active {
+            background: #2D3748;
+            transform: scale(0.95);
+        }
+        
+        .cell.ship {
+            background: #38BDF8;
+            border-color: #22D3EE;
+        }
+        
+        .cell.hit {
+            background: #F97316;
+            border-color: #EA580C;
+        }
+        
+        .cell.hit::after {
+            content: '💥';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        .cell.miss {
+            background: #1E293B;
+            border-color: #475569;
+        }
+        
+        .cell.miss::after {
+            content: '•';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748B;
+            font-size: 18px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #38BDF8;
+            color: #0B0E14;
+        }
+        
+        .btn-primary:active {
+            background: #22D3EE;
+            transform: scale(0.98);
+        }
+        
+        .btn-secondary {
+            background: #1E293B;
+            color: #F8FAFC;
+            border: 1px solid #334155;
+        }
+        
+        .btn-secondary:active {
+            background: #2D3748;
+            transform: scale(0.98);
+        }
+        
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #111827;
+            border: 1px solid #1E293B;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .modal-title {
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+        
+        .modal-text {
+            color: #94A3B8;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">🚢 МОРСКОЙ БОЙ</div>
+            <div class="phase" id="phase">Нажмите "Начать бой!"</div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Ваши корабли</div>
+                <div class="stat-value" id="playerShips">10</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Корабли врага</div>
+                <div class="stat-value" id="enemyShips">10</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Ходов</div>
+                <div class="stat-value" id="moves">0</div>
+            </div>
+        </div>
+        
+        <div class="boards">
+            <div class="board-section">
+                <div class="board-title">⚓ Ваше поле</div>
+                <div class="grid" id="playerGrid"></div>
+            </div>
+            
+            <div class="board-section" id="enemySection" style="display:none;">
+                <div class="board-title">🎯 Поле противника (кликайте для атаки)</div>
+                <div class="grid" id="enemyGrid"></div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn btn-primary" id="startBtn">▶️ Начать бой!</button>
+            <button class="btn btn-secondary" id="randomBtn" style="display:none;">🎲 Переставить</button>
+        </div>
+    </div>
+    
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalTitle">🎉</div>
+            <div class="modal-text" id="modalText"></div>
+            <button class="btn btn-primary" onclick="location.reload()">🔄 Новая игра</button>
+        </div>
+    </div>
+    
+    <script>
+        const GRID_SIZE = 10;
+        const SHIPS = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+        
+        let playerBoard = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        let enemyBoard = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        let playerShots = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        let enemyShots = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        
+        let phase = 'setup';
+        let moves = 0;
+        let playerShipsLeft = 10;
+        let enemyShipsLeft = 10;
+        
+        function initGrids() {
+            const playerGrid = document.getElementById('playerGrid');
+            const enemyGrid = document.getElementById('enemyGrid');
+            
+            playerGrid.innerHTML = '';
+            enemyGrid.innerHTML = '';
+            
+            for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                playerGrid.appendChild(cell);
+                
+                const enemyCell = document.createElement('div');
+                enemyCell.className = 'cell';
+                enemyCell.dataset.idx = i;
+                enemyCell.onclick = () => handleShot(i);
+                enemyGrid.appendChild(enemyCell);
+            }
+        }
+        
+        function placeShipsRandomly(board) {
+            for (let i = 0; i < GRID_SIZE; i++) {
+                board[i].fill(0);
+            }
+            
+            for (let shipSize of SHIPS) {
+                let placed = false;
+                let attempts = 0;
+                while (!placed && attempts < 1000) {
+                    attempts++;
+                    const horizontal = Math.random() > 0.5;
+                    const row = Math.floor(Math.random() * GRID_SIZE);
+                    const col = Math.floor(Math.random() * GRID_SIZE);
+                    
+                    if (canPlaceShip(board, row, col, shipSize, horizontal)) {
+                        placeShip(board, row, col, shipSize, horizontal);
+                        placed = true;
+                    }
+                }
+            }
+        }
+        
+        function canPlaceShip(board, row, col, size, horizontal) {
+            if (horizontal) {
+                if (col + size > GRID_SIZE) return false;
+                for (let c = col; c < col + size; c++) {
+                    if (board[row][c] !== 0) return false;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            const nr = row + dr, nc = c + dc;
+                            if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE && board[nr][nc] !== 0) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            } else {
+                if (row + size > GRID_SIZE) return false;
+                for (let r = row; r < row + size; r++) {
+                    if (board[r][col] !== 0) return false;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            const nr = r + dr, nc = col + dc;
+                            if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE && board[nr][nc] !== 0) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+        
+        function placeShip(board, row, col, size, horizontal) {
+            if (horizontal) {
+                for (let c = col; c < col + size; c++) {
+                    board[row][c] = size;
+                }
+            } else {
+                for (let r = row; r < row + size; r++) {
+                    board[r][col] = size;
+                }
+            }
+        }
+        
+        function renderPlayerBoard() {
+            const cells = document.querySelectorAll('#playerGrid .cell');
+            cells.forEach((cell, i) => {
+                const row = Math.floor(i / GRID_SIZE);
+                const col = i % GRID_SIZE;
+                cell.className = 'cell';
+                
+                if (playerBoard[row][col] > 0) {
+                    cell.classList.add('ship');
+                }
+                
+                if (enemyShots[row][col] === 1) {
+                    cell.classList.add('miss');
+                } else if (enemyShots[row][col] === 2) {
+                    cell.classList.add('hit');
+                }
+            });
+        }
+        
+        function renderEnemyBoard() {
+            const cells = document.querySelectorAll('#enemyGrid .cell');
+            cells.forEach((cell, i) => {
+                const row = Math.floor(i / GRID_SIZE);
+                const col = i % GRID_SIZE;
+                cell.className = 'cell';
+                
+                if (playerShots[row][col] === 1) {
+                    cell.classList.add('miss');
+                } else if (playerShots[row][col] === 2) {
+                    cell.classList.add('hit');
+                }
+            });
+        }
+        
+        function handleShot(idx) {
+            if (phase !== 'battle') return;
+            
+            const row = Math.floor(idx / GRID_SIZE);
+            const col = idx % GRID_SIZE;
+            
+            if (playerShots[row][col] !== 0) return;
+            
+            moves++;
+            document.getElementById('moves').textContent = moves;
+            
+            if (enemyBoard[row][col] > 0) {
+                playerShots[row][col] = 2;
+                
+                if (isShipSunk(enemyBoard, playerShots, row, col)) {
+                    enemyShipsLeft--;
+                    document.getElementById('enemyShips').textContent = enemyShipsLeft;
+                    
+                    if (enemyShipsLeft === 0) {
+                        endGame(true);
+                        return;
+                    }
+                }
+                
+                renderEnemyBoard();
+            } else {
+                playerShots[row][col] = 1;
+                renderEnemyBoard();
+                
+                setTimeout(enemyTurn, 400);
+            }
+        }
+        
+        function enemyTurn() {
+            let row, col;
+            do {
+                row = Math.floor(Math.random() * GRID_SIZE);
+                col = Math.floor(Math.random() * GRID_SIZE);
+            } while (enemyShots[row][col] !== 0);
+            
+            if (playerBoard[row][col] > 0) {
+                enemyShots[row][col] = 2;
+                
+                if (isShipSunk(playerBoard, enemyShots, row, col)) {
+                    playerShipsLeft--;
+                    document.getElementById('playerShips').textContent = playerShipsLeft;
+                    
+                    if (playerShipsLeft === 0) {
+                        endGame(false);
+                        return;
+                    }
+                }
+                
+                renderPlayerBoard();
+                setTimeout(enemyTurn, 400);
+            } else {
+                enemyShots[row][col] = 1;
+                renderPlayerBoard();
+            }
+        }
+        
+        function isShipSunk(board, shots, row, col) {
+            const shipSize = board[row][col];
+            
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (board[r][c] === shipSize && shots[r][c] !== 2) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        
+        function endGame(playerWon) {
+            phase = 'end';
+            const modal = document.getElementById('modal');
+            const title = document.getElementById('modalTitle');
+            const text = document.getElementById('modalText');
+            
+            if (playerWon) {
+                title.textContent = '🎉 ПОБЕДА!';
+                text.textContent = `Вы потопили все корабли противника за ${moves} ходов!`;
+            } else {
+                title.textContent = '💥 ПОРАЖЕНИЕ';
+                text.textContent = `Противник потопил все ваши корабли. Попробуйте еще раз!`;
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        document.getElementById('startBtn').onclick = () => {
+            placeShipsRandomly(enemyBoard);
+            phase = 'battle';
+            document.getElementById('phase').textContent = 'Ваш ход - атакуйте!';
+            document.getElementById('enemySection').style.display = 'block';
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('randomBtn').style.display = 'block';
+            renderEnemyBoard();
+        };
+        
+        document.getElementById('randomBtn').onclick = () => {
+            placeShipsRandomly(playerBoard);
+            renderPlayerBoard();
+        };
+        
+        initGrids();
+        placeShipsRandomly(playerBoard);
+        renderPlayerBoard();
+    </script>
+</body>
+</html>
