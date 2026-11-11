@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>🚢 Морской Бой</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--tg-theme-bg-color,#0B0E14);color:var(--tg-theme-text-color,#F8FAFC);overflow-x:hidden;min-height:100vh;padding:8px}
+.container{max-width:500px;margin:0 auto}
+.header{text-align:center;padding:12px 0;margin-bottom:12px}
+.title{font-size:20px;font-weight:700;background:linear-gradient(135deg,#38BDF8,#22D3EE);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.phase{font-size:12px;color:#94A3B8;margin-top:4px}
+.stats{display:flex;gap:6px;margin-bottom:12px}
+.stat{flex:1;background:var(--tg-theme-secondary-bg-color,#111827);border:1px solid #1E293B;border-radius:8px;padding:8px;text-align:center}
+.stat-label{font-size:10px;color:#64748B;margin-bottom:2px}
+.stat-value{font-size:18px;font-weight:700;color:#38BDF8}
+.boards{display:flex;flex-direction:column;gap:12px}
+.board-section{background:var(--tg-theme-secondary-bg-color,#111827);border:1px solid #1E293B;border-radius:10px;padding:10px}
+.board-title{font-size:13px;font-weight:600;margin-bottom:6px;color:#94A3B8}
+.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;margin:0 auto;max-width:100%}
+.cell{aspect-ratio:1;background:#1E293B;border:1px solid #334155;border-radius:2px;cursor:pointer;transition:all .15s;position:relative}
+.cell:active{background:#2D3748;transform:scale(.95)}
+.cell.ship{background:#38BDF8;border-color:#22D3EE}
+.cell.hit{background:#F97316;border-color:#EA580C}
+.cell.hit::after{content:'💥';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px}
+.cell.miss{background:#1E293B;border-color:#475569}
+.cell.miss::after{content:'•';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#64748B;font-size:16px}
+.controls{display:flex;gap:6px;margin-top:12px}
+.btn{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:var(--tg-theme-button-color,#38BDF8);color:var(--tg-theme-button-text-color,#0B0E14)}
+.btn-primary:active{transform:scale(.98)}
+.btn-secondary{background:#1E293B;color:#F8FAFC;border:1px solid #334155}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal.show{display:flex}
+.modal-content{background:var(--tg-theme-secondary-bg-color,#111827);border:1px solid #1E293B;border-radius:16px;padding:24px;max-width:400px;width:100%;text-align:center}
+.modal-title{font-size:28px;margin-bottom:12px}
+.modal-text{color:#94A3B8;margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<div class="title">🚢 МОРСКОЙ БОЙ</div>
+<div class="phase" id="phase">Расстановка кораблей</div>
+</div>
+<div class="stats">
+<div class="stat">
+<div class="stat-label">Ваши</div>
+<div class="stat-value" id="playerShips">10</div>
+</div>
+<div class="stat">
+<div class="stat-label">Враг</div>
+<div class="stat-value" id="enemyShips">10</div>
+</div>
+<div class="stat">
+<div class="stat-label">Ходов</div>
+<div class="stat-value" id="moves">0</div>
+</div>
+</div>
+<div class="boards">
+<div class="board-section">
+<div class="board-title">⚓ Ваше поле</div>
+<div class="grid" id="playerGrid"></div>
+</div>
+<div class="board-section" id="enemySection" style="display:none">
+<div class="board-title">🎯 Поле противника</div>
+<div class="grid" id="enemyGrid"></div>
+</div>
+</div>
+<div class="controls">
+<button class="btn btn-primary" id="randomBtn">🎲 Случайно</button>
+<button class="btn btn-secondary" id="startBtn" style="display:none">▶️ Бой!</button>
+</div>
+</div>
+<div class="modal" id="modal">
+<div class="modal-content">
+<div class="modal-title" id="modalTitle">🎉</div>
+<div class="modal-text" id="modalText"></div>
+<button class="btn btn-primary" onclick="location.reload()">Новая игра</button>
+</div>
+</div>
+<script>
+let tg=window.Telegram.WebApp;tg.ready();tg.expand();
+const G=10,S=[4,3,3,2,2,2,1,1,1,1];
+let pB=Array(G).fill().map(()=>Array(G).fill(0)),eB=Array(G).fill().map(()=>Array(G).fill(0));
+let pS=Array(G).fill().map(()=>Array(G).fill(0)),eS=Array(G).fill().map(()=>Array(G).fill(0));
+let ph='setup',mv=0,pSh=10,eSh=10;
+function iG(){
+const pG=document.getElementById('playerGrid'),eG=document.getElementById('enemyGrid');
+pG.innerHTML='';eG.innerHTML='';
+for(let i=0;i<G*G;i++){
+const c=document.createElement('div');c.className='cell';pG.appendChild(c);
+const eC=document.createElement('div');eC.className='cell';eC.dataset.i=i;eC.onclick=()=>hS(i);eG.appendChild(eC);
+}}
+function pSR(b){
+for(let i=0;i<G;i++)b[i].fill(0);
+for(let sz of S){
+let pl=false,at=0;
+while(!pl&&at<1000){
+at++;const h=Math.random()>.5,r=~~(Math.random()*G),c=~~(Math.random()*G);
+if(cPS(b,r,c,sz,h)){pS_(b,r,c,sz,h);pl=true;}}}}
+function cPS(b,r,c,sz,h){
+if(h){
+if(c+sz>G)return false;
+for(let i=c;i<c+sz;i++){
+if(b[r][i]!==0)return false;
+for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+const nr=r+dr,nc=i+dc;
+if(nr>=0&&nr<G&&nc>=0&&nc<G&&b[nr][nc]!==0)return false;}}}else{
+if(r+sz>G)return false;
+for(let i=r;i<r+sz;i++){
+if(b[i][c]!==0)return false;
+for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+const nr=i+dr,nc=c+dc;
+if(nr>=0&&nr<G&&nc>=0&&nc<G&&b[nr][nc]!==0)return false;}}}
+return true;}
+function pS_(b,r,c,sz,h){
+if(h)for(let i=c;i<c+sz;i++)b[r][i]=sz;
+else for(let i=r;i<r+sz;i++)b[i][c]=sz;}
+function rPB(){
+const cs=document.querySelectorAll('#playerGrid .cell');
+cs.forEach((c,i)=>{
+const r=~~(i/G),cl=i%G;
+c.className='cell';
+if(pB[r][cl]>0)c.classList.add('ship');
+if(eS[r][cl]===1)c.classList.add('miss');
+else if(eS[r][cl]===2)c.classList.add('hit');});}
+function rEB(){
+const cs=document.querySelectorAll('#enemyGrid .cell');
+cs.forEach((c,i)=>{
+const r=~~(i/G),cl=i%G;
+c.className='cell';
+if(pS[r][cl]===1)c.classList.add('miss');
+else if(pS[r][cl]===2)c.classList.add('hit');});}
+function hS(i){
+if(ph!=='battle')return;
+const r=~~(i/G),c=i%G;
+if(pS[r][c]!==0)return;
+mv++;document.getElementById('moves').textContent=mv;
+if(eB[r][c]>0){
+pS[r][c]=2;
+if(iSS(eB,pS,r,c)){
+eSh--;document.getElementById('enemyShips').textContent=eSh;
+if(eSh===0){eG(true);return;}}
+rEB();}else{
+pS[r][c]=1;rEB();setTimeout(eT,300);}}
+function eT(){
+let r,c;
+do{r=~~(Math.random()*G);c=~~(Math.random()*G);}while(eS[r][c]!==0);
+if(pB[r][c]>0){
+eS[r][c]=2;
+if(iSS(pB,eS,r,c)){
+pSh--;document.getElementById('playerShips').textContent=pSh;
+if(pSh===0){eG(false);return;}}
+setTimeout(eT,300);}else{eS[r][c]=1;}
+rPB();}
+function iSS(b,sh,r,c){
+const sz=b[r][c];
+for(let i=0;i<G;i++)for(let j=0;j<G;j++)
+if(b[i][j]===sz&&sh[i][j]!==2)return false;
+return true;}
+function eG(w){
+ph='end';
+const m=document.getElementById('modal'),t=document.getElementById('modalTitle'),tx=document.getElementById('modalText');
+if(w){t.textContent='🎉 ПОБЕДА!';tx.textContent=`Все корабли потоплены за ${mv} ходов!`;
+tg.showAlert(`Победа за ${mv} ходов!`);}
+else{t.textContent='💥 ПОРАЖЕНИЕ';tx.textContent='Противник потопил ваши корабли!';
+tg.showAlert('Поражение! Попробуйте еще раз.');}
+m.classList.add('show');}
+document.getElementById('randomBtn').onclick=()=>{
+pSR(pB);rPB();
+document.getElementById('randomBtn').style.display='none';
+document.getElementById('startBtn').style.display='block';
+tg.MainButton.setText('▶️ Начать бой!').show().onClick(()=>{
+pSR(eB);ph='battle';document.getElementById('phase').textContent='Ваш ход!';
+document.getElementById('enemySection').style.display='block';
+document.getElementById('startBtn').style.display='none';
+tg.MainButton.hide();rEB();});};
+iG();pSR(pB);rPB();
+document.getElementById('randomBtn').style.display='none';
+document.getElementById('startBtn').style.display='block';
+tg.MainButton.setText('▶️ Начать бой!').show().onClick(()=>{
+pSR(eB);ph='battle';document.getElementById('phase').textContent='Ваш ход!';
+document.getElementById('enemySection').style.display='block';
+document.getElementById('startBtn').style.display='none';
+tg.MainButton.hide();rEB();});
+</script>
+</body>
+</html>
